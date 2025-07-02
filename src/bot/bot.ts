@@ -364,6 +364,7 @@ bot.on(['text', 'photo', 'video'], async (ctx) => {
     if (type === 'tiktok') apiUrl = `${VPS_API_URL}/api/tiktok?url=${encodeURIComponent(link)}`;
     if (type === 'instagram') apiUrl = `${VPS_API_URL}/api/instagram?url=${encodeURIComponent(link)}`;
     if (type === 'twitter') apiUrl = `${VPS_API_URL}/api/twitter?url=${encodeURIComponent(link)}`;
+    //if (type === 'doodstream') apiUrl = `${VPS_API_URL}/api/doodstream?url=${encodeURIComponent(link)}`;
 
     const response = await axios.get(apiUrl, { timeout: 60000 });
     const videoUrl = response.data.video_url || response.data.download_url;
