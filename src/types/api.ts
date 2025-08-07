@@ -22,6 +22,8 @@ export interface TikTokResponse extends ApiResponse {
   title?: string;
   author?: string;
   video_url?: string;
+  images?: string[];
+  type?: 'video' | 'image';
 }
 
 export interface TwitterResponse extends VideoResponse {

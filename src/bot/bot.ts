@@ -68,7 +68,7 @@ bot.start(async (ctx) => {
     const photos = await ctx.telegram.getUserProfilePhotos(botInfo.id, 0, 1);
 
     const baseButtons = [
-      [{ text: '🎵 TikTok — Download video tanpa watermark', callback_data: 'select_tiktok' }],
+      [{ text: '🎵 TikTok — Download video & slide foto tanpa watermark', callback_data: 'select_tiktok' }],
       [{ text: '📘 Facebook — Download reels & video', callback_data: 'select_facebook' }],
       [{ text: '📸 Instagram — Download reels, story, feed', callback_data: 'select_instagram' }],
       [{ text: '🐦 Twitter/X — Download video dari Twitter', callback_data: 'select_twitter' }],
@@ -172,6 +172,33 @@ bot.on(['text', 'photo', 'video'], async (ctx) => {
       if (detectedPlatform === 'twitter') apiUrl = `${VPS_API_URL}/api/twitter?url=${encodeURIComponent(link)}`;
       
       const response = await axios.get(apiUrl, { timeout: 60000 });
+      
+      if (detectedPlatform === 'tiktok' && response.data.type === 'image' && response.data.images) {
+        const images = response.data.images;
+        
+        const mediaGroup = images.map((imageUrl, index) => ({
+          type: 'photo' as const,
+          media: imageUrl,
+          caption: index === 0 ? `📸 TikTok Slide (${images.length} foto)\n📌 ${response.data.title || 'TikTok Slide'}` : undefined
+        }));
+        
+        try {
+          await ctx.replyWithMediaGroup(mediaGroup);
+        } catch (err) {
+          console.error(`❌ Error sending slide media group:`, err);
+          for (let i = 0; i < images.length; i++) {
+            try {
+              await ctx.replyWithPhoto({ url: images[i] }, {
+                caption: i === 0 ? `📸 TikTok Slide ${i + 1}/${images.length}\n📌 ${response.data.title || 'TikTok Slide'}` : undefined
+              });
+            } catch (individualErr) {
+              console.error(`❌ Error sending slide ${i + 1}:`, individualErr);
+            }
+          }
+        }
+        return;
+      }
+      
       const videoUrl = response.data.video_url || response.data.download_url;
       
       if (!videoUrl) return;
@@ -367,8 +394,55 @@ bot.on(['text', 'photo', 'video'], async (ctx) => {
     //if (type === 'doodstream') apiUrl = `${VPS_API_URL}/api/doodstream?url=${encodeURIComponent(link)}`;
 
     const response = await axios.get(apiUrl, { timeout: 60000 });
-    const videoUrl = response.data.video_url || response.data.download_url;
     const title = response.data.title || 'Mbotix Sosmed Downloader';
+    
+    if (type === 'tiktok' && response.data.type === 'image' && response.data.images) {
+      const images = response.data.images;
+      
+      const mediaGroup = images.map((imageUrl, index) => ({
+        type: 'photo' as const,
+        media: imageUrl,
+        caption: index === 0 ? `📸 TikTok Slide (${images.length} foto)\n📌 Judul: ${title}` : undefined
+      }));
+      
+      try {
+        await ctx.replyWithMediaGroup(mediaGroup);
+        
+        const buttons = Markup.inlineKeyboard([
+          [Markup.button.url('☕ Support Dev', 'https://saweria.co/MbotixTech')],
+          [Markup.button.url('⚠️ Report Bug', 'https://t.me/xiaogarpu')]
+        ]);
+        
+        await ctx.reply('☕ Dukung bot ini atau laporkan bug:', buttons);
+        
+      } catch (err) {
+        console.error(`❌ Error sending slide media group:`, err);
+        for (let i = 0; i < images.length; i++) {
+          try {
+            const caption = i === 0 ? 
+              `📸 TikTok Slide ${i + 1}/${images.length}\n📌 Judul: ${title}` : 
+              `📸 TikTok Slide ${i + 1}/${images.length}`;
+            
+            await ctx.replyWithPhoto({ url: images[i] }, { caption });
+          } catch (individualErr) {
+            console.error(`❌ Error sending slide ${i + 1}:`, individualErr);
+          }
+        }
+      }
+      
+      lastAction.set(ctx.from!.id, { type, link, title });
+      await ctx.telegram.deleteMessage(ctx.chat!.id, processingMessage.message_id);
+      
+      const done = await ctx.reply('✅ Slide foto berhasil dikirim!');
+      setTimeout(() => {
+        ctx.telegram.deleteMessage(ctx.chat!.id, done.message_id).catch(() => {});
+      }, 4000);
+      
+      userState.delete(ctx.from!.id);
+      return;
+    }
+    
+    const videoUrl = response.data.video_url || response.data.download_url;
 
     if (!videoUrl) {
       await ctx.telegram.editMessageText(ctx.chat!.id, processingMessage.message_id, undefined, `❌ Gagal mengambil video.`);
